@@ -16,10 +16,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MoviesApiTest {
+    private static final String BASE = "http://localhost:8080";
+    private static MoviesServer server;
+    private static HttpClient client;
 
     @BeforeAll
     static void beforeAll() {
-
+        server = new MoviesServer();
+        server.start();
+        client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(2))
+                .build();
     }
 
     @BeforeEach
@@ -29,29 +36,22 @@ public class MoviesApiTest {
 
     @AfterAll
     static void afterAll() {
-
+        if (server != null) {
+            server.stop();
+        }
     }
 
     @Test
     void getMovies_whenEmpty_returnsEmptyArray() throws Exception {
-        MoviesServer server = new MoviesServer();
-
-        server.start();
-
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(2))
-                .build();
 
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:8080/movies"))
+                .uri(URI.create(BASE + "/movies"))
                 .GET()
                 .build();
 
         HttpResponse.BodyHandler<String> responseBodyHandler =
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
         HttpResponse<String> resp = client.send(req, responseBodyHandler);
-
-        server.stop();
 
         assertEquals(200, resp.statusCode(), "GET /movies должен вернуть 200");
 
