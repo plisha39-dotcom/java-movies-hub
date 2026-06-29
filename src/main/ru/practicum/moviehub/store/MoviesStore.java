@@ -30,6 +30,7 @@ public class MoviesStore {
     public void addMovie(Movie movie) {
         int id = movie.getId();
         movies.put(id, movie);
+        nextId = Math.max(nextId, id + 1);
     }
 
     public Movie createMovie(String title, int year) {
