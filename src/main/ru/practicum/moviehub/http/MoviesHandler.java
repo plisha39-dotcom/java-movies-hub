@@ -149,5 +149,8 @@ public class MoviesHandler extends BaseHttpHandler {
                 sendNoContent(ex);
             }
         }
+        ErrorResponse response = new ErrorResponse("Метод не поддерживается");
+        String json = gson.toJson(response);
+        sendJson(ex, 405, json);
     }
 }

@@ -691,4 +691,36 @@ public class MoviesApiTest {
 
         assertEquals("Некорректный год", object.get("error").getAsString());
     }
+
+    @Test
+    void unsupportedMethod_whenPutMovies_returns405() throws Exception {
+        String json = """
+                {
+                  "title": "Интерстеллар",
+                  "year": 2014
+                }
+                """;
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies"))
+                .timeout(Duration.ofSeconds(2))
+                .header("Content-Type", "application/json; charset=UTF-8")
+                .PUT(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+
+        assertEquals(405, resp.statusCode(), "Неподдерживаемый метод должен вернуть 405");
+
+        String contentTypeHeaderValue =
+                resp.headers().firstValue("Content-Type").orElse("");
+        assertEquals("application/json; charset=UTF-8", contentTypeHeaderValue,
+                "Content-Type должен содержать формат данных и кодировку");
+
+        String body = resp.body().trim();
+        JsonObject object = JsonParser.parseString(body).getAsJsonObject();
+
+        assertEquals("Метод не поддерживается", object.get("error").getAsString());
+    }
 }
