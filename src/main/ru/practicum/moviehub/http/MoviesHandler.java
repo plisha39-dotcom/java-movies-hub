@@ -29,7 +29,6 @@ public class MoviesHandler extends BaseHttpHandler {
     private final Gson gson;
     private final int maxYear;
 
-
     public MoviesHandler(MoviesStore moviesStore, Gson gson) {
         this.moviesStore = moviesStore;
         this.gson = gson;
@@ -95,6 +94,11 @@ public class MoviesHandler extends BaseHttpHandler {
     }
 
     private void handlePost(HttpExchange ex) throws IOException {
+        String path = ex.getRequestURI().getPath();
+        if (!path.equals(MOVIES_PATH)) {
+            sendError(ex, 404, "Эндпоинт не найден");
+            return;
+        }
         Headers headers = ex.getRequestHeaders();
         String contentType = headers.getFirst("Content-Type");
         if (contentType == null || !contentType.contains("application/json")) {
@@ -107,13 +111,22 @@ public class MoviesHandler extends BaseHttpHandler {
             return;
         }
         JsonObject object = optionalObject.get();
-        String title = object.get("title").getAsString();
-        int year = object.get("year").getAsInt();
-        List<String> details = validateMovie(title, year);
-        if (!details.isEmpty()) {
-            sendValidationError(ex, details);
+
+        List<String> requestDetails = validateMovieRequest(object);
+        if (!requestDetails.isEmpty()) {
+            sendValidationError(ex, requestDetails);
             return;
         }
+
+        String title = object.get("title").getAsString();
+        int year = object.get("year").getAsInt();
+
+        List<String> validationDetails = validateMovie(title, year);
+        if (!validationDetails.isEmpty()) {
+            sendValidationError(ex, validationDetails);
+            return;
+        }
+
         Movie movie = moviesStore.createMovie(title, year);
         String json = gson.toJson(movie);
         sendJson(ex, 201, json);
@@ -195,5 +208,28 @@ public class MoviesHandler extends BaseHttpHandler {
         ErrorResponse response = new ErrorResponse("Ошибка валидации", details);
         String json = gson.toJson(response);
         sendJson(ex, 422, json);
+    }
+
+    private List<String> validateMovieRequest(JsonObject object) {
+        List<String> details = new ArrayList<>();
+        if (!object.has("title")) {
+            details.add("название не должно быть пустым");
+        } else if (object.get("title").isJsonNull()) {
+            details.add("название не должно быть пустым");
+        } else if (!object.get("title").isJsonPrimitive()) {
+            details.add("название должно быть строкой");
+        } else if (!object.get("title").getAsJsonPrimitive().isString()) {
+            details.add("название должно быть строкой");
+        }
+        if (!object.has("year")) {
+            details.add("год не должен быть пустым");
+        } else if (object.get("year").isJsonNull()) {
+            details.add("год не должен быть пустым");
+        } else if (!object.get("year").isJsonPrimitive()) {
+            details.add("год должен быть числом");
+        } else if (!object.get("year").getAsJsonPrimitive().isNumber()) {
+            details.add("год должен быть числом");
+        }
+        return details;
     }
 }

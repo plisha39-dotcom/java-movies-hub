@@ -502,4 +502,104 @@ public class MoviesApiTest {
 
         assertError(resp, "Некорректный год");
     }
+
+    @Test
+    void postMovies_whenPathContainsId_returns404() throws Exception {
+        String json = "{\"title\":\"Интерстеллар\",\"year\":2014}";
+
+        HttpRequest req = postJsonRequest("/movies/1", json);
+
+        HttpResponse<String> resp = send(req);
+
+        assertEquals(404, resp.statusCode(), "POST /movies/1 должен вернуть 404");
+
+        assertJsonContentType(resp);
+
+        assertError(resp, "Эндпоинт не найден");
+    }
+
+    @Test
+    void postMovies_whenBodyIsEmptyObject_returns422() throws Exception {
+        String json = "{}";
+
+        HttpRequest req = postJsonRequest("/movies", json);
+
+        HttpResponse<String> resp = send(req);
+
+        assertEquals(422, resp.statusCode(), "POST /movies должен вернуть 422");
+
+        assertJsonContentType(resp);
+
+        assertError(resp, "Ошибка валидации");
+
+        JsonObject object = parseObject(resp);
+        JsonArray details = object.get("details").getAsJsonArray();
+
+        assertEquals(2, details.size(), "Должно быть две ошибки валидации");
+        assertEquals("название не должно быть пустым", details.get(0).getAsString());
+        assertEquals("год не должен быть пустым", details.get(1).getAsString());
+    }
+
+    @Test
+    void postMovies_whenYearIsNotNumber_returns422() throws Exception {
+        String json = "{\"title\":\"Интерстеллар\",\"year\":\"abc\"}";
+
+        HttpRequest req = postJsonRequest("/movies", json);
+
+        HttpResponse<String> resp = send(req);
+
+        assertEquals(422, resp.statusCode(), "POST /movies должен вернуть 422");
+
+        assertJsonContentType(resp);
+
+        assertError(resp, "Ошибка валидации");
+
+        JsonObject object = parseObject(resp);
+        JsonArray details = object.get("details").getAsJsonArray();
+
+        assertEquals(1, details.size(), "Должна быть одна ошибка валидации");
+        assertEquals("год должен быть числом", details.get(0).getAsString());
+    }
+
+    @Test
+    void postMovies_whenTitleIsNull_returns422() throws Exception {
+        String json = "{\"title\":null,\"year\":2014}";
+
+        HttpRequest req = postJsonRequest("/movies", json);
+
+        HttpResponse<String> resp = send(req);
+
+        assertEquals(422, resp.statusCode(), "POST /movies должен вернуть 422");
+
+        assertJsonContentType(resp);
+
+        assertError(resp, "Ошибка валидации");
+
+        JsonObject object = parseObject(resp);
+        JsonArray details = object.get("details").getAsJsonArray();
+
+        assertEquals(1, details.size(), "Должна быть одна ошибка валидации");
+        assertEquals("название не должно быть пустым", details.get(0).getAsString());
+    }
+
+    @Test
+    void postMovies_whenYearIsMissing_returns422() throws Exception {
+        String json = "{\"title\":\"Интерстеллар\"}";
+
+        HttpRequest req = postJsonRequest("/movies", json);
+
+        HttpResponse<String> resp = send(req);
+
+        assertEquals(422, resp.statusCode(), "POST /movies должен вернуть 422");
+
+        assertJsonContentType(resp);
+
+        assertError(resp, "Ошибка валидации");
+
+        JsonObject object = parseObject(resp);
+        JsonArray details = object.get("details").getAsJsonArray();
+
+        assertEquals(1, details.size(), "Должна быть одна ошибка валидации");
+        assertEquals("год не должен быть пустым", details.get(0).getAsString());
+    }
 }
