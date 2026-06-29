@@ -130,12 +130,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenValidRequest_createsMovie() throws Exception {
-        String json = """
-                {
-                  "title": "Интерстеллар",
-                  "year": 2014
-                }
-                """;
+        String json = "{\"title\":\"Интерстеллар\",\"year\":2014}";
         HttpRequest req = postJsonRequest("/movies", json);
 
         HttpResponse<String> resp = send(req);
@@ -151,12 +146,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenContentTypeIsNotJson_returns415() throws Exception {
-        String json = """
-                {
-                  "title": "Интерстеллар",
-                  "year": 2014
-                }
-                """;
+        String json = "{\"title\":\"Интерстеллар\",\"year\":2014}";
         HttpRequest req = postRequest("/movies", json, "text/plain; charset=UTF-8");
 
         HttpResponse<String> resp = send(req);
@@ -170,12 +160,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenTitleIsEmpty_returns422() throws Exception {
-        String json = """ 
-                  {
-                  "title": "",
-                  "year": 2014
-                }
-                """;
+        String json = "{\"title\":\"\",\"year\":2014}";
         HttpRequest req = postJsonRequest("/movies", json);
 
         HttpResponse<String> resp = send(req);
@@ -195,12 +180,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenTitleIsBlank_returns422() throws Exception {
-        String json = """ 
-                  {
-                  "title": "  ",
-                  "year": 2014
-                }
-                """;
+        String json = "{\"title\":\"  \",\"year\":2014}";
         HttpRequest req = postJsonRequest("/movies", json);
 
         HttpResponse<String> resp = send(req);
@@ -222,12 +202,7 @@ public class MoviesApiTest {
     void postMovies_whenTitleIsTooLong_returns422() throws Exception {
         String longTitle = "А".repeat(101);
 
-        String json = """
-                {
-                  "title": "%s",
-                  "year": 2014
-                }
-                """.formatted(longTitle);
+        String json = "{\"title\":\"%s\",\"year\":2014}".formatted(longTitle);
 
         HttpRequest req = postJsonRequest("/movies", json);
 
@@ -248,12 +223,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenYearIsBefore1888_returns422() throws Exception {
-        String json = """ 
-                  {
-                  "title": "Интерстеллар",
-                  "year": 1887
-                }
-                """;
+        String json = "{\"title\":\"Интерстеллар\",\"year\":1887}";
         HttpRequest req = postJsonRequest("/movies", json);
 
         HttpResponse<String> resp = send(req);
@@ -280,12 +250,7 @@ public class MoviesApiTest {
         int invalidYear = maxYear + 1;
         int minYear = 1888;
 
-        String json = """
-                {
-                  "title": "Интерстеллар",
-                  "year": %d
-                }
-                """.formatted(invalidYear);
+        String json = "{\"title\":\"Интерстеллар\",\"year\":%d}".formatted(invalidYear);
 
         HttpRequest req = postJsonRequest("/movies", json);
 
@@ -306,12 +271,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenTitleAndYearAreInvalid_returnsAllValidationErrors() throws Exception {
-        String json = """ 
-                  {
-                  "title": "",
-                  "year": 1887
-                }
-                """;
+        String json = "{\"title\":\"\",\"year\":1887}";
         HttpRequest req = postJsonRequest("/movies", json);
 
         HttpResponse<String> resp = send(req);
@@ -335,12 +295,7 @@ public class MoviesApiTest {
 
     @Test
     void postMovies_whenJsonIsMalformed_returns400() throws Exception {
-        String json = """
-                {
-                  "title": "Интерстеллар",
-                  "year": 2014
-                
-                """;
+        String json = "{\"title\":\"Интерстеллар\",\"year\":2014";
         HttpRequest req = postJsonRequest("/movies", json);
 
         HttpResponse<String> resp = send(req);
@@ -518,12 +473,7 @@ public class MoviesApiTest {
 
     @Test
     void unsupportedMethod_whenPutMovies_returns405() throws Exception {
-        String json = """
-                {
-                  "title": "Интерстеллар",
-                  "year": 2014
-                }
-                """;
+        String json = "{\"title\":\"Интерстеллар\",\"year\":2014}";
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(BASE + "/movies"))
                 .timeout(Duration.ofSeconds(2))
