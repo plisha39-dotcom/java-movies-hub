@@ -246,11 +246,11 @@ public class MoviesApiTest {
         String longTitle = "А".repeat(101);
 
         String json = """
-        {
-          "title": "%s",
-          "year": 2014
-        }
-        """.formatted(longTitle);
+                {
+                  "title": "%s",
+                  "year": 2014
+                }
+                """.formatted(longTitle);
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(BASE + "/movies"))
@@ -326,11 +326,11 @@ public class MoviesApiTest {
         int minYear = 1888;
 
         String json = """
-        {
-          "title": "Интерстеллар",
-          "year": %d
-        }
-        """.formatted(invalidYear);
+                {
+                  "title": "Интерстеллар",
+                  "year": %d
+                }
+                """.formatted(invalidYear);
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(BASE + "/movies"))
@@ -513,5 +513,96 @@ public class MoviesApiTest {
         JsonObject object = JsonParser.parseString(body).getAsJsonObject();
 
         assertEquals("Некорректный ID", object.get("error").getAsString());
+    }
+
+    @Test
+    void deleteMovieById_whenMovieExists_deletesMovie() throws Exception {
+        Movie movie = new Movie(1, "Интерстеллар", 2014);
+        store.addMovie(movie);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies/1"))
+                .DELETE()
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+
+        assertEquals(204, resp.statusCode(), "DELETE /movies/1 должен вернуть 204");
+
+        HttpRequest req1 = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies/1"))
+                .GET()
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler1 =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp1 = client.send(req1, responseBodyHandler1);
+
+        assertEquals(404, resp1.statusCode(), "GET /movies/1 должен вернуть 404");
+    }
+
+    @Test
+    void deleteMovieById_whenMovieNotFound_returns404() throws Exception {
+        Movie movie = new Movie(1, "Интерстеллар", 2014);
+        store.addMovie(movie);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies/999"))
+                .DELETE()
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+        String body = resp.body().trim();
+
+        assertEquals(404, resp.statusCode(), "DELETE /movies/999 должен вернуть 404");
+
+        String contentTypeHeaderValue =
+                resp.headers().firstValue("Content-Type").orElse("");
+        assertEquals("application/json; charset=UTF-8", contentTypeHeaderValue,
+                "Content-Type должен содержать формат данных и кодировку");
+
+        JsonObject object = JsonParser.parseString(body).getAsJsonObject();
+
+        assertEquals("Фильм не найден", object.get("error").getAsString());
+    }
+
+    @Test
+    void deleteMovieById_whenIdIsNotNumber_returns400() throws Exception {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies/abc"))
+                .DELETE()
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+        String body = resp.body().trim();
+
+        assertEquals(400, resp.statusCode(), "DELETE /movies/abc должен вернуть 400");
+
+        String contentTypeHeaderValue =
+                resp.headers().firstValue("Content-Type").orElse("");
+        assertEquals("application/json; charset=UTF-8", contentTypeHeaderValue,
+                "Content-Type должен содержать формат данных и кодировку");
+
+        JsonObject object = JsonParser.parseString(body).getAsJsonObject();
+
+        assertEquals("Некорректный ID", object.get("error").getAsString());
+    }
+
+    @Test
+    void getMoviesByYear_whenMoviesExist_returnsFilteredMovies() throws Exception {
+        Movie movie = new Movie(1, "Интерстеллар", 2014);
+        Movie movie1 = new Movie(2, "Начало", 2010);
+        Movie movie2 = new Movie(3, "Леон", 1994);
+        store.addMovie(movie);
+        store.addMovie(movie1);
+        store.addMovie(movie2);
+
+
     }
 }

@@ -3,8 +3,6 @@ package ru.practicum.moviehub.store;
 import ru.practicum.moviehub.model.Movie;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,12 +35,16 @@ public class MoviesStore {
         int id = nextId;
         Movie movie = new Movie(id, title, year);
         movies.put(id, movie);
-        nextId ++;
+        nextId++;
         return movie;
     }
 
     public Optional<Movie> findMovieById(int id) {
         Movie movie = movies.get(id);
         return Optional.ofNullable(movie);
+    }
+
+    public boolean deleteMovie(int id) {
+        return movies.remove(id) != null;
     }
 }

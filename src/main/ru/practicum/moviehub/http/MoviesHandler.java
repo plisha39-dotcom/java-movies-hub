@@ -110,5 +110,28 @@ public class MoviesHandler extends BaseHttpHandler {
             String json = gson.toJson(movie);
             sendJson(ex, 201, json);
         }
+        if ("DELETE".equalsIgnoreCase(method)) {
+            String path = ex.getRequestURI().getPath();
+            if (path.startsWith("/movies/")) {
+                String idString = path.substring("/movies/".length());
+                int id;
+                try {
+                    id = Integer.parseInt(idString);
+                } catch (NumberFormatException e) {
+                    ErrorResponse response = new ErrorResponse("Некорректный ID");
+                    String json = gson.toJson(response);
+                    sendJson(ex, 400, json);
+                    return;
+                }
+                boolean deleted = moviesStore.deleteMovie(id);
+                if (!deleted) {
+                    ErrorResponse response = new ErrorResponse("Фильм не найден");
+                    String json = gson.toJson(response);
+                    sendJson(ex, 404, json);
+                    return;
+                }
+                sendNoContent(ex);
+            }
+        }
     }
 }
