@@ -20,10 +20,13 @@ import java.util.Locale;
 import java.util.Optional;
 
 public class MoviesHandler extends BaseHttpHandler {
-    private final MoviesStore moviesStore;
-    private final Gson gson;
     private static final int MAX_TITLE_LENGTH = 100;
     private static final int MIN_YEAR = 1888;
+    private static final String MOVIES_PATH = "/movies";
+    private static final String MOVIE_ID_PATH_PREFIX = "/movies/";
+    private static final String YEAR_QUERY_PREFIX = "year=";
+    private final MoviesStore moviesStore;
+    private final Gson gson;
     private final int maxYear;
 
 
@@ -54,34 +57,32 @@ public class MoviesHandler extends BaseHttpHandler {
 
     private void handleGet(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
-        if (path.equals("/movies")) {
+        if (path.equals(MOVIES_PATH)) {
             String query = ex.getRequestURI().getQuery();
             if (query == null) {
                 List<Movie> movies = moviesStore.getAllMovies();
                 String json = gson.toJson(movies);
                 sendJson(ex, 200, json);
-            } else if (query.startsWith("year=")) {
-                String yearString = query.substring("year=".length());
-                int year;
-                try {
-                    year = Integer.parseInt(yearString);
-                } catch (NumberFormatException e) {
+            } else if (query.startsWith(YEAR_QUERY_PREFIX)) {
+                Optional<Integer> optionalYear = parseYear(query);
+                if (optionalYear.isEmpty()) {
                     sendError(ex, 400, "Некорректный год");
                     return;
                 }
+                int year = optionalYear.get();
                 List<Movie> movies = moviesStore.findMoviesByYear(year);
                 String json = gson.toJson(movies);
                 sendJson(ex, 200, json);
+            } else {
+                sendError(ex, 400, "Некорректный год");
             }
-        } else if (path.startsWith("/movies/")) {
-            String idString = path.substring("/movies/".length());
-            int id;
-            try {
-                id = Integer.parseInt(idString);
-            } catch (NumberFormatException e) {
+        } else if (path.startsWith(MOVIE_ID_PATH_PREFIX)) {
+            Optional<Integer> idOptional = parseId(path);
+            if (idOptional.isEmpty()) {
                 sendError(ex, 400, "Некорректный ID");
                 return;
             }
+            int id = idOptional.get();
             Optional<Movie> optionalMovie = moviesStore.findMovieById(id);
             if (optionalMovie.isEmpty()) {
                 sendError(ex, 404, "Фильм не найден");
@@ -100,31 +101,17 @@ public class MoviesHandler extends BaseHttpHandler {
             sendError(ex, 415, "Неподдерживаемый Content-Type");
             return;
         }
-        InputStream inputStream = ex.getRequestBody();
-        String body = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        JsonObject object;
-        try {
-            object = JsonParser.parseString(body).getAsJsonObject();
-        } catch (JsonSyntaxException e) {
+        Optional<JsonObject> optionalObject = parseRequestBody(ex);
+        if (optionalObject.isEmpty()) {
             sendError(ex, 400, "Некорректный JSON");
             return;
         }
+        JsonObject object = optionalObject.get();
         String title = object.get("title").getAsString();
         int year = object.get("year").getAsInt();
-        List<String> details = new ArrayList<>();
-        if (title.isBlank()) {
-            details.add("название не должно быть пустым");
-        }
-        if (title.length() > MAX_TITLE_LENGTH) {
-            details.add("название не должно быть длиннее " + MAX_TITLE_LENGTH + " символов");
-        }
-        if (year < MIN_YEAR || year > maxYear) {
-            details.add("год должен быть между " + MIN_YEAR + " и " + maxYear);
-        }
+        List<String> details = validateMovie(title, year);
         if (!details.isEmpty()) {
-            ErrorResponse response = new ErrorResponse("Ошибка валидации", details);
-            String json = gson.toJson(response);
-            sendJson(ex, 422, json);
+            sendValidationError(ex, details);
             return;
         }
         Movie movie = moviesStore.createMovie(title, year);
@@ -134,15 +121,13 @@ public class MoviesHandler extends BaseHttpHandler {
 
     private void handleDelete(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
-        if (path.startsWith("/movies/")) {
-            String idString = path.substring("/movies/".length());
-            int id;
-            try {
-                id = Integer.parseInt(idString);
-            } catch (NumberFormatException e) {
+        if (path.startsWith(MOVIE_ID_PATH_PREFIX)) {
+            Optional<Integer> idOptional = parseId(path);
+            if (idOptional.isEmpty()) {
                 sendError(ex, 400, "Некорректный ID");
                 return;
             }
+            int id = idOptional.get();
             boolean deleted = moviesStore.deleteMovie(id);
             if (!deleted) {
                 sendError(ex, 404, "Фильм не найден");
@@ -156,5 +141,59 @@ public class MoviesHandler extends BaseHttpHandler {
         ErrorResponse response = new ErrorResponse(message);
         String json = gson.toJson(response);
         sendJson(ex, status, json);
+    }
+
+    private Optional<Integer> parseId(String path) {
+        String idString = path.substring(MOVIE_ID_PATH_PREFIX.length());
+        int id;
+        try {
+            id = Integer.parseInt(idString);
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+        return Optional.of(id);
+    }
+
+    private Optional<Integer> parseYear(String query) {
+        String yearString = query.substring(YEAR_QUERY_PREFIX.length());
+        int year;
+        try {
+            year = Integer.parseInt(yearString);
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+        return Optional.of(year);
+    }
+
+    private List<String> validateMovie(String title, int year) {
+        List<String> details = new ArrayList<>();
+        if (title.isBlank()) {
+            details.add("название не должно быть пустым");
+        }
+        if (title.length() > MAX_TITLE_LENGTH) {
+            details.add("название не должно быть длиннее " + MAX_TITLE_LENGTH + " символов");
+        }
+        if (year < MIN_YEAR || year > maxYear) {
+            details.add("год должен быть между " + MIN_YEAR + " и " + maxYear);
+        }
+        return details;
+    }
+
+    private Optional<JsonObject> parseRequestBody(HttpExchange ex) throws IOException {
+        InputStream inputStream = ex.getRequestBody();
+        String body = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        JsonObject object;
+        try {
+            object = JsonParser.parseString(body).getAsJsonObject();
+        } catch (JsonSyntaxException | IllegalStateException e) {
+            return Optional.empty();
+        }
+        return Optional.of(object);
+    }
+
+    private void sendValidationError(HttpExchange ex, List<String> details) throws IOException {
+        ErrorResponse response = new ErrorResponse("Ошибка валидации", details);
+        String json = gson.toJson(response);
+        sendJson(ex, 422, json);
     }
 }
