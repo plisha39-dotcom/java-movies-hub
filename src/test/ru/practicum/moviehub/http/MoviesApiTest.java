@@ -598,11 +598,97 @@ public class MoviesApiTest {
     void getMoviesByYear_whenMoviesExist_returnsFilteredMovies() throws Exception {
         Movie movie = new Movie(1, "Интерстеллар", 2014);
         Movie movie1 = new Movie(2, "Начало", 2010);
-        Movie movie2 = new Movie(3, "Леон", 1994);
+        Movie movie2 = new Movie(3, "Дюна", 2014);
         store.addMovie(movie);
         store.addMovie(movie1);
         store.addMovie(movie2);
 
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies?year=2014"))
+                .GET()
+                .build();
 
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+
+        assertEquals(200, resp.statusCode(), "GET /movies?year=2014 должен вернуть 200");
+
+        String contentTypeHeaderValue =
+                resp.headers().firstValue("Content-Type").orElse("");
+        assertEquals("application/json; charset=UTF-8", contentTypeHeaderValue,
+                "Content-Type должен содержать формат данных и кодировку");
+
+        String body = resp.body().trim();
+        JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+
+        assertEquals(2, array.size(), "Ожидается 2 фильма в массиве");
+
+        JsonObject movieJson = array.get(0).getAsJsonObject();
+
+        assertEquals(1, movieJson.get("id").getAsInt());
+        assertEquals("Интерстеллар", movieJson.get("title").getAsString());
+        assertEquals(2014, movieJson.get("year").getAsInt());
+
+        JsonObject movieJson1 = array.get(1).getAsJsonObject();
+
+        assertEquals(3, movieJson1.get("id").getAsInt());
+        assertEquals("Дюна", movieJson1.get("title").getAsString());
+        assertEquals(2014, movieJson1.get("year").getAsInt());
+    }
+
+    @Test
+    void getMoviesByYear_whenNoMoviesForYear_returnsEmptyArray() throws Exception {
+        Movie movie = new Movie(1, "Интерстеллар", 2014);
+        Movie movie1 = new Movie(2, "Начало", 2010);
+        Movie movie2 = new Movie(3, "Дюна", 2014);
+        store.addMovie(movie);
+        store.addMovie(movie1);
+        store.addMovie(movie2);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies?year=2000"))
+                .GET()
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+
+        assertEquals(200, resp.statusCode(), "GET /movies?year=2000 должен вернуть 200");
+
+        String contentTypeHeaderValue =
+                resp.headers().firstValue("Content-Type").orElse("");
+        assertEquals("application/json; charset=UTF-8", contentTypeHeaderValue,
+                "Content-Type должен содержать формат данных и кодировку");
+
+        String body = resp.body().trim();
+        JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+
+        assertEquals(0, array.size(), "Ожидается пустой массив");
+    }
+
+    @Test
+    void getMoviesByYear_whenYearIsNotNumber_returns400() throws Exception {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/movies?year=abc"))
+                .GET()
+                .build();
+
+        HttpResponse.BodyHandler<String> responseBodyHandler =
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+        HttpResponse<String> resp = client.send(req, responseBodyHandler);
+
+        assertEquals(400, resp.statusCode(), "GET /movies?year=abc должен вернуть 400");
+
+        String contentTypeHeaderValue =
+                resp.headers().firstValue("Content-Type").orElse("");
+        assertEquals("application/json; charset=UTF-8", contentTypeHeaderValue,
+                "Content-Type должен содержать формат данных и кодировку");
+
+        String body = resp.body().trim();
+        JsonObject object = JsonParser.parseString(body).getAsJsonObject();
+
+        assertEquals("Некорректный год", object.get("error").getAsString());
     }
 }

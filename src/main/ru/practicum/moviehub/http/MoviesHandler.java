@@ -38,10 +38,28 @@ public class MoviesHandler extends BaseHttpHandler {
         if ("GET".equalsIgnoreCase(method)) {
             String path = ex.getRequestURI().getPath();
             if (path.equals("/movies")) {
-                List<Movie> movies = moviesStore.getAllMovies();
-                String json = gson.toJson(movies);
-                sendJson(ex, 200, json);
-                return;
+                String query = ex.getRequestURI().getQuery();
+                if (query == null) {
+                    List<Movie> movies = moviesStore.getAllMovies();
+                    String json = gson.toJson(movies);
+                    sendJson(ex, 200, json);
+                    return;
+                } else if (query.startsWith("year=")) {
+                    String yearString = query.substring("year=".length());
+                    int year;
+                    try {
+                        year = Integer.parseInt(yearString);
+                    } catch (NumberFormatException e) {
+                        ErrorResponse response = new ErrorResponse("Некорректный год");
+                        String json = gson.toJson(response);
+                        sendJson(ex, 400, json);
+                        return;
+                    }
+                    List<Movie> movies = moviesStore.findMoviesByYear(year);
+                    String json = gson.toJson(movies);
+                    sendJson(ex, 200, json);
+                    return;
+                }
             } else if (path.startsWith("/movies/")) {
                 String idString = path.substring("/movies/".length());
                 int id;
@@ -65,8 +83,6 @@ public class MoviesHandler extends BaseHttpHandler {
                 sendJson(ex, 200, json);
                 return;
             }
-        } else {
-            // пока оставим так, позже сделаем сразу вывод ошибки через другой класс
         }
         if ("POST".equalsIgnoreCase(method)) {
             Headers headers = ex.getRequestHeaders();
