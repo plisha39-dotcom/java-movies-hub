@@ -3,6 +3,7 @@ package ru.practicum.moviehub.http;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import ru.practicum.moviehub.api.ErrorResponse;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class MoviesHandler extends BaseHttpHandler {
     private final MoviesStore moviesStore;
@@ -34,9 +36,35 @@ public class MoviesHandler extends BaseHttpHandler {
     public void handle(HttpExchange ex) throws IOException {
         String method = ex.getRequestMethod();
         if ("GET".equalsIgnoreCase(method)) {
-            List<Movie> movies = moviesStore.getAllMovies();
-            String json = gson.toJson(movies);
-            sendJson(ex, 200, json);
+            String path = ex.getRequestURI().getPath();
+            if (path.equals("/movies")) {
+                List<Movie> movies = moviesStore.getAllMovies();
+                String json = gson.toJson(movies);
+                sendJson(ex, 200, json);
+                return;
+            } else if (path.startsWith("/movies/")) {
+                String idString = path.substring("/movies/".length());
+                int id;
+                try {
+                    id = Integer.parseInt(idString);
+                } catch (NumberFormatException e) {
+                    ErrorResponse response = new ErrorResponse("Некорректный ID");
+                    String json = gson.toJson(response);
+                    sendJson(ex, 400, json);
+                    return;
+                }
+                Optional<Movie> optionalMovie = moviesStore.findMovieById(id);
+                if (optionalMovie.isEmpty()) {
+                    ErrorResponse response = new ErrorResponse("Фильм не найден");
+                    String json = gson.toJson(response);
+                    sendJson(ex, 404, json);
+                    return;
+                }
+                Movie movie = optionalMovie.get();
+                String json = gson.toJson(movie);
+                sendJson(ex, 200, json);
+                return;
+            }
         } else {
             // пока оставим так, позже сделаем сразу вывод ошибки через другой класс
         }
@@ -51,7 +79,15 @@ public class MoviesHandler extends BaseHttpHandler {
             }
             InputStream inputStream = ex.getRequestBody();
             String body = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-            JsonObject object = JsonParser.parseString(body).getAsJsonObject();
+            JsonObject object;
+            try {
+                object = JsonParser.parseString(body).getAsJsonObject();
+            } catch (JsonSyntaxException e) {
+                ErrorResponse response = new ErrorResponse("Некорректный JSON");
+                String json = gson.toJson(response);
+                sendJson(ex, 400, json);
+                return;
+            }
             String title = object.get("title").getAsString();
             int year = object.get("year").getAsInt();
             List<String> details = new ArrayList<>();
